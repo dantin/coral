@@ -11,17 +11,23 @@ class GithubSpider(scrapy.Spider):
 
     def start_requests(self):
         urls = [
-            ('vim', 'https://github.com/vim/vim'),
-            ('git', 'https://github.com/git/git'),
+            ('vim', 'https://github.com/vim/vim', ''),
+            ('git', 'https://github.com/git/git', ''),
+            ('FFmpeg', 'https://github.com/FFmpeg/FFmpeg', '/FFmpeg/FFmpeg/releases'),
         ]
-        for target, url in urls:
-            yield scrapy.Request(url=url, callback=self.parse_release, meta={'tarball': target})
+        for target, url, next_page in urls:
+            yield scrapy.Request(
+                url=url,
+                callback=self.parse_release,
+                meta={'tarball': target, 'next_page': next_page})
 
     def parse_release(self, response):
-        next_page = parse_release_link(response)
-        if not next_page:
-            return
-        yield response.follow(next_page, callback=self.parse, meta=response.meta)
+        if 'next_page' in response.meta and response.meta['next_page']:
+            next_page = response.meta['next_page']
+        else:
+            next_page = parse_release_link(response)
+        if next_page:
+            yield response.follow(next_page, callback=self.parse, meta=response.meta)
 
     def parse(self, response):
         links = parse_release_links(response)
